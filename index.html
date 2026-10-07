@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Catálogo</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap">
+  <style>
+    /* Layout: grade de produtos mobile-first com botão flutuante do WhatsApp */
+    :root {
+      --bg: #fafaf8;
+      --surface: #ffffff;
+      --fg: #1c1c1c;
+      --muted: #6b7280;
+      --accent: #25D366;
+      --accent-deep: #128C7E;
+      --border: #ebebeb;
+      --radius: 12px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #111110;
+        --surface: #1c1c1b;
+        --fg: #f0efe8;
+        --muted: #9ca3af;
+        --border: #2a2a28;
+        color-scheme: dark;
+      }
+    }
+
+    :root[data-theme="dark"] {
+      --bg: #111110;
+      --surface: #1c1c1b;
+      --fg: #f0efe8;
+      --muted: #9ca3af;
+      --border: #2a2a28;
+      color-scheme: dark;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      padding-inline: 16px;
+      padding-block: 0;
+    }
+
+    header {
+      position: sticky;
+      top: env(safe-area-inset-top, 0px);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding-block: 18px;
+      z-index: 10;
+    }
+
+    header h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+
+    header p {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    /* ─── Galeria ─────────────────────────────── */
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      padding-top: 20px;
+      padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+    }
+
+    @media (min-width: 560px) {
+      .gallery { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    @media (min-width: 840px) {
+      .gallery { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      cursor: zoom-in;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+    }
+
+    .card:active {
+      transform: scale(0.98);
+    }
+
+    .card img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* ─── Lightbox ────────────────────────────── */
+    .lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.92);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      cursor: zoom-out;
+    }
+
+    .lightbox.open {
+      display: flex;
+    }
+
+    .lightbox img {
+      max-width: 100%;
+      max-height: 88vh;
+      object-fit: contain;
+      border-radius: 8px;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: max(20px, env(safe-area-inset-top, 20px));
+      right: 20px;
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      font-size: 1.3rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+
+    .lightbox-close:hover {
+      background: rgba(255,255,255,0.25);
+    }
+
+    /* ─── Botão WhatsApp ──────────────────────── */
+    .whatsapp-btn {
+      position: fixed;
+      bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+      right: 20px;
+      background: var(--accent);
+      color: #fff;
+      text-decoration: none;
+      border-radius: 50px;
+      padding: 13px 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 20px rgba(37, 211, 102, 0.45);
+      z-index: 50;
+      transition: background 0.2s, transform 0.15s;
+      white-space: nowrap;
+    }
+
+    .whatsapp-btn:hover {
+      background: var(--accent-deep);
+      transform: translateY(-2px);
+    }
+
+    .whatsapp-btn:active {
+      transform: scale(0.97);
+    }
+
+    .wa-icon {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    /* Em telas muito pequenas, só o ícone */
+    @media (max-width: 380px) {
+      .whatsapp-btn .btn-label {
+        display: none;
+      }
+      .whatsapp-btn {
+        padding: 15px;
+        border-radius: 50%;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .card, .whatsapp-btn { transition: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Catálogo de Produtos</h1>
+    <p>Clique em uma imagem para ampliar</p>
+  </header>
+
+  <div class="gallery" id="gallery">
+    <!--
+      COMO ADICIONAR NOVAS IMAGENS:
+      1. Coloque o arquivo na pasta "imagem/"
+      2. Copie um dos blocos <div class="card"> abaixo
+      3. Troque o src e o alt pelo nome do novo arquivo
+    -->
+
+    <div class="card" onclick="openLightbox('imagem/chinelo_1.jpeg')">
+      <img src="imagem/chinelo_1.jpeg" alt="Produto 1" loading="lazy">
+    </div>
+
+    <div class="card" onclick="openLightbox('imagem/chinelo_2.jpeg')">
+      <img src="imagem/chinelo_2.jpeg" alt="Produto 2" loading="lazy">
+    </div>
+
+  </div>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox()" aria-label="Fechar">✕</button>
+    <img id="lightbox-img" src="" alt="Imagem ampliada">
+  </div>
+
+  <!-- Botão WhatsApp -->
+  <a
+    class="whatsapp-btn"
+    href="https://wa.me/5531983055118"
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="Falar no WhatsApp"
+  >
+    <svg class="wa-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+    </svg>
+    <span class="btn-label">Falar no WhatsApp</span>
+  </a>
+
+  <script>
+    function openLightbox(src) {
+      const lb = document.getElementById('lightbox');
+      const img = document.getElementById('lightbox-img');
+      img.src = src;
+      lb.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+      const lb = document.getElementById('lightbox');
+      lb.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeLightbox();
+    });
+  </script>
+
+</body>
+</html>
