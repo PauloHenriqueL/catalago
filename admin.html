@@ -318,14 +318,16 @@
       transform: translateX(-50%);
       background: var(--fg);
       color: var(--bg);
-      padding: 9px 18px;
-      border-radius: 50px;
+      padding: 10px 18px;
+      border-radius: 12px;
       font-size: 0.82rem;
       font-weight: 500;
+      line-height: 1.45;
+      text-align: center;
+      max-width: calc(100% - 32px);
       z-index: 999;
       opacity: 0;
       pointer-events: none;
-      white-space: nowrap;
       transition: opacity 0.2s;
     }
 
@@ -505,7 +507,79 @@
     el.textContent = msg;
     el.className = 'toast show' + (isError ? ' error' : '');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function() { el.className = 'toast'; }, 3500);
+    toastTimer = setTimeout(function() { el.className = 'toast'; }, isError ? 6000 : 3500);
+  }
+
+  // ── Erros amigáveis ────────────────────────────────────────────────
+  // Traduz erros técnicos do GitHub para linguagem que o admin entende.
+
+  function friendlyError(e, context) {
+    var raw = (e && e.message ? e.message : '').toLowerCase();
+
+    // Sem internet
+    if (e instanceof TypeError || raw.includes('failed to fetch') || raw.includes('networkerror')) {
+      return 'Sem conexão com a internet. Verifique sua rede e tente novamente.';
+    }
+
+    // Token expirado ou inválido (401)
+    if (raw.includes('bad credentials') || raw.includes('401') || raw.includes('requires authentication')) {
+      if (context === 'token') {
+        return 'Token inválido. Verifique se você copiou o token completo e tente de novo.';
+      }
+      return 'Sua sessão expirou. Faça logout, gere um novo token no GitHub e entre novamente.';
+    }
+
+    // Sem permissão de escrita (403)
+    if (raw.includes('must have push access') || raw.includes('403') ||
+        raw.includes('resource not accessible') || raw.includes('permission denied')) {
+      if (context === 'token') {
+        return 'Este token não tem permissão de escrita. Ao criar o token, marque "Contents → Read and write" para o repositório catalago.';
+      }
+      return 'Sem permissão para realizar esta ação. O token pode ter expirado — faça logout e entre com um novo.';
+    }
+
+    // Arquivo ou repositório não encontrado (404)
+    if (raw.includes('not found') || raw.includes('404')) {
+      if (context === 'load') return 'Catálogo não encontrado no repositório. Verifique se o repositório está configurado corretamente.';
+      return 'O arquivo não foi encontrado no repositório. Pode ter sido movido ou excluído.';
+    }
+
+    // Limite de requisições (429 / rate limit)
+    if (raw.includes('rate limit') || raw.includes('429') || raw.includes('secondary rate')) {
+      return 'Muitas ações em pouco tempo. Aguarde alguns minutos e tente novamente.';
+    }
+
+    // Arquivo muito grande
+    if (raw.includes('too large') || raw.includes('larger than') || raw.includes('exceeds')) {
+      return 'Esta foto é grande demais. O GitHub aceita arquivos de até 100 MB. Reduza o tamanho da imagem e tente novamente.';
+    }
+
+    // Conflito de versão (409) — outra aba salvou primeiro
+    if (raw.includes('409') || raw.includes('conflict') || raw.includes('does not match')) {
+      return 'Conflito: o catálogo foi alterado em outra aba ou dispositivo ao mesmo tempo. Recarregue a página e tente novamente.';
+    }
+
+    // Dados inválidos (422)
+    if (raw.includes('422') || raw.includes('unprocessable') || raw.includes('invalid content encoding')) {
+      if (context === 'upload') return 'Não foi possível enviar a foto. Verifique se o arquivo é uma imagem válida (JPG, PNG ou WebP).';
+      return 'Dados inválidos. Verifique os campos preenchidos e tente novamente.';
+    }
+
+    // Instabilidade no GitHub (5xx)
+    if (raw.includes('500') || raw.includes('502') || raw.includes('503') || raw.includes('service unavailable')) {
+      return 'O GitHub está com instabilidade no momento. Aguarde alguns minutos e tente novamente.';
+    }
+
+    // Mensagem genérica por contexto
+    var byContext = {
+      load:   'Não foi possível carregar o catálogo.',
+      upload: 'Erro ao enviar a foto.',
+      save:   'Erro ao salvar o catálogo.',
+      edit:   'Não foi possível salvar as alterações.',
+      delete: 'Não foi possível remover o produto.',
+      token:  'Não foi possível verificar o token.',
+    };
+    return (byContext[context] || 'Ocorreu um erro inesperado.') + ' Tente novamente ou contate o suporte técnico.';
   }
 
   // ── Grid render ────────────────────────────────────────────────────
@@ -575,7 +649,11 @@
     try {
       state = await getProdutos();
       renderGrid(state.list);
-    } catch (e) { showToast('Erro ao carregar: ' + e.message, true); }
+    } catch (e) {
+      document.getElementById('prod-grid').innerHTML =
+        '<p class="empty-msg">Não foi possível carregar os produtos. Recarregue a página.</p>';
+      showToast(friendlyError(e, 'load'), true);
+    }
   }
 
   // ── Upload queue ───────────────────────────────────────────────────
@@ -701,7 +779,7 @@
       showToast('Produto publicado!');
     } catch (e) {
       item.classList.remove('uploading');
-      showToast('Erro: ' + e.message, true);
+      showToast(friendlyError(e, 'upload'), true);
     }
   }
 
@@ -741,7 +819,7 @@
       closeEditModal();
       showToast('Produto atualizado.');
     } catch (e) {
-      showToast('Erro: ' + e.message, true);
+      showToast(friendlyError(e, 'edit'), true);
     } finally {
       btn.disabled = false;
       btn.textContent = 'Salvar';
@@ -766,7 +844,7 @@
       state.sha = await saveProdutos(state.list, state.sha, 'Admin: remove ' + (prod.id || index));
       renderGrid(state.list);
       showToast('Removido.');
-    } catch (e) { showToast('Erro: ' + e.message, true); }
+    } catch (e) { showToast(friendlyError(e, 'delete'), true); }
   }
 
   // ── Auth ───────────────────────────────────────────────────────────
@@ -806,7 +884,7 @@
       showScreen('admin-screen');
       loadProducts();
     } catch (e) {
-      showToast('Token inválido ou sem permissão.', true);
+      showToast(friendlyError(e, 'token'), true);
       TOKEN = '';
     } finally {
       btn.disabled = false;
