@@ -142,6 +142,20 @@
       border: 1px solid var(--border);
     }
 
+    .btn-link {
+      display: block;
+      width: 100%;
+      margin-top: 10px;
+      padding: 6px;
+      background: none;
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 500;
+      text-decoration: underline;
+    }
+
+    .btn-link:hover { color: var(--fg); }
+
     .btn-logout {
       font-size: 0.8rem;
       color: var(--muted);
@@ -349,8 +363,15 @@
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+<!-- ── CARREGANDO ─────────────────────────────────────────────────────── -->
+<div id="boot-screen">
+  <div class="card-wrap">
+    <p class="subtitle" style="margin:0">Carregando…</p>
+  </div>
+</div>
+
 <!-- ── LOGIN ─────────────────────────────────────────────────────────── -->
-<div id="login-screen">
+<div id="login-screen" style="display:none">
   <div class="card-wrap">
     <h2>Admin — Catálogo</h2>
     <p class="subtitle">Acesso restrito ao administrador.</p>
@@ -364,6 +385,49 @@
       <input type="password" id="pass-input" autocomplete="current-password">
     </div>
     <button class="btn-primary" id="login-btn">Entrar</button>
+    <button class="btn-link" id="forgot-btn" type="button">Esqueci meu usuário ou senha</button>
+  </div>
+</div>
+
+<!-- ── CRIAR / REDEFINIR ACESSO ──────────────────────────────────────── -->
+<div id="setup-screen" style="display:none">
+  <div class="card-wrap">
+    <h2 id="setup-title">Criar acesso ao admin</h2>
+    <p class="subtitle" id="setup-intro-first">
+      Primeiro acesso. Crie o usuário e a senha do painel. Para confirmar que você
+      é dono do repositório <strong class="repo-name"></strong>, informe também um
+      token do GitHub com permissão de escrita.
+    </p>
+    <p class="subtitle" id="setup-intro-reset" style="display:none">
+      Defina um novo usuário e senha. Para confirmar que você é dono do repositório
+      <strong class="repo-name"></strong>, informe um token do GitHub com permissão de escrita.
+    </p>
+
+    <div class="field">
+      <label for="setup-token">Token do GitHub</label>
+      <input type="password" id="setup-token" placeholder="github_pat_…" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="field">
+      <label for="setup-user">Novo usuário</label>
+      <input type="text" id="setup-user" autocomplete="username" spellcheck="false">
+    </div>
+    <div class="field">
+      <label for="setup-pass">Nova senha (mínimo 10 caracteres)</label>
+      <input type="password" id="setup-pass" autocomplete="new-password">
+    </div>
+    <div class="field">
+      <label for="setup-pass2">Repita a senha</label>
+      <input type="password" id="setup-pass2" autocomplete="new-password">
+    </div>
+    <button class="btn-primary" id="setup-btn">Criar acesso</button>
+    <button class="btn-link" id="setup-back-btn" type="button" style="display:none">Voltar para o login</button>
+
+    <p class="hint">
+      Ainda não tem um token?
+      <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">Criar aqui</a>
+      — em "Only select repositories" escolha <strong class="repo-name"></strong> e em
+      Permissions adicione <em>Contents → Read and write</em>.
+    </p>
   </div>
 </div>
 
@@ -383,7 +447,7 @@
     <p class="hint">
       Ainda não tem um token?
       <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">Criar aqui</a>
-      — repositório <strong>catalago</strong>, permissão <em>Contents → Read and write</em>.
+      — repositório <strong class="repo-name"></strong>, permissão <em>Contents → Read and write</em>.
     </p>
   </div>
 </div>
@@ -436,7 +500,7 @@
     <p class="hint" style="margin-top:12px">
       Gere um novo token em
       <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">github.com → Settings → Personal access tokens</a>
-      — repositório <strong>catalago</strong>, permissão <em>Contents → Read and write</em>.
+      — repositório <strong class="repo-name"></strong>, permissão <em>Contents → Read and write</em>.
     </p>
   </div>
 </div>
@@ -466,18 +530,68 @@
 </div>
 
 <script>
-  var ADMIN_HASH = 'c2192a46bf9c854915032baec9fc1bd55ba782131ffdb325d7773f79907713a6';
-  var REPO       = 'PauloHenriqueL/catalago';
-  var BRANCH     = 'main';
-  var TOKEN      = '';
+  var REPO        = detectRepo();
+  var BRANCH      = 'main';
+  var TOKEN       = '';
+  var TOKEN_KEY   = 'admin_gh_token:' + REPO;
+  var CONFIG_PATH = 'admin-config.json';
+  var adminConfig = null;
+
+  // Descobre o repositório pelo endereço do GitHub Pages (usuario.github.io/repositorio).
+  // Só é usado o FALLBACK_REPO em domínio próprio ou abrindo o arquivo no computador.
+  function detectRepo() {
+    var FALLBACK_REPO = 'PauloHenriqueL/catalago';
+    var m = location.hostname.match(/^([^.]+)\.github\.io$/i);
+    if (!m) return FALLBACK_REPO;
+    var first = location.pathname.split('/').filter(Boolean)[0];
+    if (!first || /\.html?$/i.test(first)) return m[1] + '/' + m[1] + '.github.io';
+    return m[1] + '/' + first;
+  }
 
   // ── Crypto ─────────────────────────────────────────────────────────
 
-  async function sha256(str) {
-    var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  function toHex(buf) {
     return Array.from(new Uint8Array(buf)).map(function(b) {
       return b.toString(16).padStart(2, '0');
     }).join('');
+  }
+
+  function randomSalt() {
+    var bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return toHex(bytes);
+  }
+
+  // PBKDF2 com salt: o resultado fica num repositório público, então precisa ser lento de adivinhar
+  async function hashCredentials(user, pass, salt, iterations) {
+    var enc = new TextEncoder();
+    var key = await crypto.subtle.importKey('raw', enc.encode(user + ':' + pass), 'PBKDF2', false, ['deriveBits']);
+    var bits = await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode(salt), iterations: iterations },
+      key, 256
+    );
+    return toHex(bits);
+  }
+
+  async function validateToken(t) {
+    var res = await fetch('https://api.github.com/repos/' + REPO, {
+      headers: { Authorization: 'token ' + t }
+    });
+    var info = await res.json().catch(function() { return {}; });
+    if (!res.ok) throw new Error(info.message || 'HTTP ' + res.status);
+    if (!info.permissions || !info.permissions.push) {
+      throw new Error('resource not accessible by personal access token');
+    }
+    if (info.default_branch) BRANCH = info.default_branch;
+  }
+
+  // Leitura pública (sem token): só diz se o acesso já foi criado e qual o hash
+  async function loadConfig() {
+    var res = await fetch('https://api.github.com/repos/' + REPO + '/contents/' + CONFIG_PATH, { cache: 'no-store' });
+    if (res.status === 404) return null;
+    var json = await res.json().catch(function() { return {}; });
+    if (!res.ok) throw new Error(json.message || 'HTTP ' + res.status);
+    return JSON.parse(atob(json.content.replace(/\n/g, '')));
   }
 
   // ── GitHub API ─────────────────────────────────────────────────────
@@ -559,7 +673,7 @@
 
     // Token expirado ou inválido (401)
     if (raw.includes('bad credentials') || raw.includes('401') || raw.includes('requires authentication')) {
-      if (context === 'token') {
+      if (context === 'token' || context === 'setup') {
         return 'Token inválido. Verifique se você copiou o token completo e tente de novo.';
       }
       return 'Sua sessão expirou. Faça logout, gere um novo token no GitHub e entre novamente.';
@@ -568,8 +682,8 @@
     // Sem permissão de escrita (403)
     if (raw.includes('must have push access') || raw.includes('403') ||
         raw.includes('resource not accessible') || raw.includes('permission denied')) {
-      if (context === 'token') {
-        return 'Este token não tem permissão de escrita. Ao criar o token, marque "Contents → Read and write" para o repositório catalago.';
+      if (context === 'token' || context === 'setup') {
+        return 'Este token não tem permissão de escrita no repositório ' + REPO + '. Ao criar o token, escolha esse repositório e marque "Contents → Read and write".';
       }
       return 'Sem permissão para realizar esta ação. O token pode ter expirado — faça logout e entre com um novo.';
     }
@@ -614,6 +728,8 @@
       edit:   'Não foi possível salvar as alterações.',
       delete: 'Não foi possível remover o produto.',
       token:  'Não foi possível verificar o token.',
+      setup:  'Não foi possível salvar o novo acesso.',
+      config: 'Não foi possível verificar o acesso ao painel.',
     };
     return (byContext[context] || 'Ocorreu um erro inesperado.') + ' Tente novamente ou contate o suporte técnico.';
   }
@@ -893,15 +1009,8 @@
     TOKEN = t;
 
     try {
-      var res = await fetch('https://api.github.com/repos/' + REPO, {
-        headers: { Authorization: 'token ' + t }
-      });
-      var info = await res.json().catch(function() { return {}; });
-      if (!res.ok) throw new Error(info.message || 'HTTP ' + res.status);
-      if (!info.permissions || !info.permissions.push) {
-        throw new Error('resource not accessible by personal access token');
-      }
-      localStorage.setItem('admin_gh_token', t);
+      await validateToken(t);
+      localStorage.setItem(TOKEN_KEY, t);
       closeChangeTokenModal();
       showToast('Token atualizado com sucesso!');
       loadProducts();
@@ -940,17 +1049,77 @@
     var btn  = document.getElementById('login-btn');
     if (!user || !pass) { showToast('Preencha usuário e senha.', true); return; }
 
+    if (!adminConfig || !adminConfig.salt || !adminConfig.hash) {
+      showToast('O acesso ao painel ainda não foi criado. Use "Esqueci meu usuário ou senha" para criar.', true);
+      return;
+    }
+
     btn.disabled = true;
     btn.textContent = 'Verificando…';
     try {
-      var hash = await sha256(user + ':' + pass);
-      if (hash !== ADMIN_HASH) { showToast('Usuário ou senha incorretos.', true); return; }
-      var savedToken = localStorage.getItem('admin_gh_token');
+      var hash = await hashCredentials(user, pass, adminConfig.salt, adminConfig.iterations || 210000);
+      if (hash !== adminConfig.hash) { showToast('Usuário ou senha incorretos.', true); return; }
+      var savedToken = localStorage.getItem(TOKEN_KEY);
       if (!savedToken) { showScreen('token-screen'); }
       else { TOKEN = savedToken; showScreen('admin-screen'); loadProducts(); }
     } finally {
       btn.disabled = false;
       btn.textContent = 'Entrar';
+    }
+  }
+
+  // mode: 'first' (repositório sem acesso criado) ou 'reset' (esqueci a senha)
+  function openSetup(mode) {
+    var first = mode === 'first';
+    document.getElementById('setup-title').textContent = first ? 'Criar acesso ao admin' : 'Redefinir acesso';
+    document.getElementById('setup-intro-first').style.display = first ? '' : 'none';
+    document.getElementById('setup-intro-reset').style.display = first ? 'none' : '';
+    document.getElementById('setup-back-btn').style.display = first ? 'none' : '';
+    document.getElementById('setup-btn').textContent = first ? 'Criar acesso' : 'Salvar novo acesso';
+    showScreen('setup-screen');
+  }
+
+  async function handleSetup() {
+    var t     = document.getElementById('setup-token').value.trim();
+    var user  = document.getElementById('setup-user').value.trim();
+    var pass  = document.getElementById('setup-pass').value;
+    var pass2 = document.getElementById('setup-pass2').value;
+    var btn   = document.getElementById('setup-btn');
+
+    if (!t || !user || !pass) { showToast('Preencha o token, o usuário e a senha.', true); return; }
+    if (pass.length < 10) { showToast('A senha precisa ter pelo menos 10 caracteres.', true); return; }
+    if (pass !== pass2) { showToast('As duas senhas estão diferentes. Digite a mesma senha nos dois campos.', true); return; }
+
+    var label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Salvando…';
+    try {
+      await validateToken(t);
+      TOKEN = t;
+
+      var salt = randomSalt();
+      var cfg = { salt: salt, iterations: 210000, hash: await hashCredentials(user, pass, salt, 210000) };
+
+      var current = null;
+      try { current = await getFile(CONFIG_PATH); }
+      catch (e) { if (!/not found|404/i.test(e.message || '')) throw e; }
+
+      await putFile(CONFIG_PATH, btoa(JSON.stringify(cfg, null, 2)), current && current.sha, 'Admin: define acesso ao painel');
+
+      adminConfig = cfg;
+      localStorage.setItem(TOKEN_KEY, t);
+      ['setup-token', 'setup-user', 'setup-pass', 'setup-pass2'].forEach(function(id) {
+        document.getElementById(id).value = '';
+      });
+      showScreen('admin-screen');
+      loadProducts();
+      showToast('Acesso salvo. Use esse usuário e senha nas próximas vezes.');
+    } catch (e) {
+      TOKEN = '';
+      showToast(friendlyError(e, 'setup'), true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
     }
   }
 
@@ -964,16 +1133,8 @@
     btn.textContent = 'Verificando…';
     TOKEN = t;
     try {
-      // Valida autenticação e permissão de escrita consultando os dados do repositório
-      var res = await fetch('https://api.github.com/repos/' + REPO, {
-        headers: { Authorization: 'token ' + t }
-      });
-      var info = await res.json().catch(function() { return {}; });
-      if (!res.ok) throw new Error(info.message || 'HTTP ' + res.status);
-      if (!info.permissions || !info.permissions.push) {
-        throw new Error('resource not accessible by personal access token');
-      }
-      localStorage.setItem('admin_gh_token', t);
+      await validateToken(t);
+      localStorage.setItem(TOKEN_KEY, t);
       showScreen('admin-screen');
       loadProducts();
     } catch (e) {
@@ -993,7 +1154,7 @@
   }
 
   function showScreen(id) {
-    ['login-screen', 'token-screen', 'admin-screen'].forEach(function(s) {
+    ['boot-screen', 'login-screen', 'setup-screen', 'token-screen', 'admin-screen'].forEach(function(s) {
       document.getElementById(s).style.display = (s === id) ? '' : 'none';
     });
   }
@@ -1009,6 +1170,12 @@
     if (e.key === 'Enter') handleTokenSetup();
   });
   document.getElementById('logout-btn').addEventListener('click', logout);
+  document.getElementById('forgot-btn').addEventListener('click', function() { openSetup('reset'); });
+  document.getElementById('setup-back-btn').addEventListener('click', function() { showScreen('login-screen'); });
+  document.getElementById('setup-btn').addEventListener('click', handleSetup);
+  document.getElementById('setup-pass2').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') handleSetup();
+  });
 
   var zone      = document.getElementById('upload-zone');
   var fileInput = document.getElementById('file-input');
@@ -1030,8 +1197,18 @@
 
   // ── Boot ───────────────────────────────────────────────────────────
 
-  var saved = localStorage.getItem('admin_gh_token');
-  showScreen('login-screen');
+  document.querySelectorAll('.repo-name').forEach(function(el) { el.textContent = REPO; });
+
+  loadConfig()
+    .then(function(cfg) {
+      adminConfig = cfg;
+      if (cfg) showScreen('login-screen');
+      else openSetup('first');
+    })
+    .catch(function(e) {
+      showScreen('login-screen');
+      showToast(friendlyError(e, 'config'), true);
+    });
 </script>
 
 </body>
