@@ -638,7 +638,8 @@
       var img = document.createElement('img');
       img.loading = 'lazy';
       img.alt = p.description || 'Produto';
-      img.src = p.src + '?cb=' + Date.now();
+      // Lê direto do repositório: o GitHub Pages leva ~1 min para publicar fotos novas
+      img.src = 'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/' + p.src;
       card.appendChild(img);
 
       var info = document.createElement('div');
