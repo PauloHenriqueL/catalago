@@ -392,7 +392,10 @@
 <div id="admin-screen" style="display:none">
   <header>
     <h1>Admin — Catálogo</h1>
-    <button class="btn-logout" id="logout-btn">Sair</button>
+    <div style="display:flex;gap:6px">
+      <button class="btn-logout" id="change-token-btn" title="Alterar o token do GitHub">🔑 Token</button>
+      <button class="btn-logout" id="logout-btn">Sair</button>
+    </div>
   </header>
 
   <div style="padding-top:8px">
@@ -411,6 +414,30 @@
 
     <div class="section-label" id="grid-label" style="margin-top:8px">Produtos no catálogo</div>
     <div class="prod-grid" id="prod-grid"></div>
+  </div>
+</div>
+
+<!-- ── Modal de troca de token ──────────────────────────────────────── -->
+<div class="edit-modal" id="change-token-modal">
+  <div class="edit-modal-bg" id="change-token-modal-bg"></div>
+  <div class="edit-modal-card">
+    <h3>Alterar Token do GitHub</h3>
+    <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;line-height:1.5">
+      Cole o novo token abaixo. Ele substitui o anterior salvo neste navegador.
+    </p>
+    <div class="field">
+      <label for="new-token-input">Novo Personal Access Token</label>
+      <input type="password" id="new-token-input" placeholder="ghp_…" autocomplete="off" spellcheck="false">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn-primary" id="change-token-save-btn" style="flex:1">Salvar token</button>
+      <button class="btn-ghost"   id="change-token-cancel-btn">Cancelar</button>
+    </div>
+    <p class="hint" style="margin-top:12px">
+      Gere um novo token em
+      <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">github.com → Settings → Personal access tokens</a>
+      — repositório <strong>catalago</strong>, permissão <em>Contents → Read and write</em>.
+    </p>
   </div>
 </div>
 
@@ -828,6 +855,54 @@
 
   document.getElementById('edit-cancel-btn').addEventListener('click', closeEditModal);
   document.getElementById('edit-modal-bg').addEventListener('click', closeEditModal);
+
+  // ── Troca de token ─────────────────────────────────────────────────
+
+  function openChangeTokenModal() {
+    document.getElementById('new-token-input').value = '';
+    document.getElementById('change-token-modal').classList.add('open');
+  }
+
+  function closeChangeTokenModal() {
+    document.getElementById('change-token-modal').classList.remove('open');
+  }
+
+  document.getElementById('change-token-btn').addEventListener('click', openChangeTokenModal);
+  document.getElementById('change-token-cancel-btn').addEventListener('click', closeChangeTokenModal);
+  document.getElementById('change-token-modal-bg').addEventListener('click', closeChangeTokenModal);
+
+  document.getElementById('change-token-save-btn').addEventListener('click', async function() {
+    var input = document.getElementById('new-token-input');
+    var btn   = document.getElementById('change-token-save-btn');
+    var t = input.value.trim();
+    if (!t) { showToast('Cole o novo token antes de salvar.', true); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Verificando…';
+    var oldToken = TOKEN;
+    TOKEN = t;
+
+    try {
+      var res = await fetch('https://api.github.com/repos/' + REPO, {
+        headers: { Authorization: 'token ' + t }
+      });
+      var info = await res.json().catch(function() { return {}; });
+      if (!res.ok) throw new Error(info.message || 'HTTP ' + res.status);
+      if (!info.permissions || !info.permissions.push) {
+        throw new Error('resource not accessible by personal access token');
+      }
+      localStorage.setItem('admin_gh_token', t);
+      closeChangeTokenModal();
+      showToast('Token atualizado com sucesso!');
+      loadProducts();
+    } catch (e) {
+      TOKEN = oldToken;
+      showToast(friendlyError(e, 'token'), true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Salvar token';
+    }
+  });
 
   // ── Delete ─────────────────────────────────────────────────────────
 
