@@ -10,5 +10,11 @@
     "src": "imagem/chinelo_2.jpeg",
     "price": "34,90",
     "description": "Chinelo Havaianas Top Mix"
+  },
+  {
+    "id": "CH8728",
+    "src": "imagem/1791826621848_chinelo_2.jpeg",
+    "price": "98",
+    "description": "este"
   }
 ]
