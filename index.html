@@ -429,7 +429,8 @@
   <!-- ── Botão WhatsApp flutuante ───────────────────────────── -->
   <a
     class="wa-float"
-    href="https://wa.me/5531983055118"
+    id="wa-float"
+    href="#"
     target="_blank"
     rel="noopener noreferrer"
     aria-label="Falar no WhatsApp"
@@ -440,9 +441,25 @@
     <span class="wa-label">Falar no WhatsApp</span>
   </a>
 
+  <script src="variaveis.js"></script>
   <script>
-    var WA = '5531983055118';
+    // Se variaveis.js tiver erro de digitação, CONFIG não existe
+    var CFG = window.CONFIG || null;
+    var WA  = CFG ? String(CFG.whatsapp || '').replace(/\D/g, '') : '';
     var allProducts = [];
+
+    if (CFG) {
+      document.title = CFG.nomeLoja || document.title;
+      document.querySelector('header h1').textContent = CFG.nomeLoja || 'Catálogo';
+      document.getElementById('wa-float').href = 'https://wa.me/' + WA;
+    }
+
+    function fillMessage(template, p) {
+      return template
+        .split('{descricao}').join(p.description || '')
+        .split('{id}').join(p.id || '')
+        .split('{preco}').join(p.price || '');
+    }
 
     function openModal(p) {
       var img   = document.getElementById('modal-img');
@@ -457,8 +474,7 @@
       desc.textContent  = p.description || '';
       idTag.textContent = 'ID: ' + (p.id || '—');
 
-      var msg = 'Olá! Tenho interesse no chinelo *' + (p.description || '') +
-                '* (ID: ' + (p.id || '') + ') por R$ ' + (p.price || '') + '.';
+      var msg = fillMessage(CFG.mensagemWhatsapp || 'Olá! Tenho interesse no produto {descricao} (ID: {id}).', p);
       waBtn.href = 'https://wa.me/' + WA + '?text=' + encodeURIComponent(msg);
 
       document.getElementById('modal').classList.add('open');
@@ -536,10 +552,17 @@
       location.replace(location.pathname + '?v=' + Date.now());
     });
 
-    fetch('produtos.json?v=' + Date.now(), { cache: 'no-store' })
-      .then(function(r) { return r.json(); })
-      .then(function(data) { allProducts = data; renderGallery(allProducts); })
-      .catch(function() {});
+    if (!CFG) {
+      var warn = document.createElement('p');
+      warn.className = 'no-results';
+      warn.textContent = 'Não foi possível ler o arquivo variaveis.js. Confira se nenhuma aspa, vírgula ou chave foi apagada ao editar.';
+      document.getElementById('gallery').appendChild(warn);
+    } else {
+      fetch('produtos.json?v=' + Date.now(), { cache: 'no-store' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) { allProducts = data; renderGallery(allProducts); })
+        .catch(function() {});
+    }
   </script>
 
 </body>

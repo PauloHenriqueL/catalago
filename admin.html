@@ -529,20 +529,21 @@
   </div>
 </div>
 
+<script src="variaveis.js"></script>
 <script>
-  var REPO        = detectRepo();
-  var BRANCH      = 'main';
+  var CFG         = window.CONFIG || {};
+  var REPO        = (CFG.repositorio || '').trim() || detectRepo();
+  var BRANCH      = CFG.branch || 'main';
   var TOKEN       = '';
   var TOKEN_KEY   = 'admin_gh_token:' + REPO;
   var CONFIG_PATH = 'admin-config.json';
   var adminConfig = null;
 
   // Descobre o repositório pelo endereço do GitHub Pages (usuario.github.io/repositorio).
-  // Só é usado o FALLBACK_REPO em domínio próprio ou abrindo o arquivo no computador.
+  // Fora do GitHub Pages, o repositório precisa vir de variaveis.js.
   function detectRepo() {
-    var FALLBACK_REPO = 'PauloHenriqueL/catalago';
     var m = location.hostname.match(/^([^.]+)\.github\.io$/i);
-    if (!m) return FALLBACK_REPO;
+    if (!m) return '';
     var first = location.pathname.split('/').filter(Boolean)[0];
     if (!first || /\.html?$/i.test(first)) return m[1] + '/' + m[1] + '.github.io';
     return m[1] + '/' + first;
@@ -1199,7 +1200,10 @@
 
   document.querySelectorAll('.repo-name').forEach(function(el) { el.textContent = REPO; });
 
-  loadConfig()
+  if (!REPO) {
+    showScreen('login-screen');
+    showToast('Não foi possível descobrir o repositório. Preencha "repositorio" no arquivo variaveis.js (ex.: usuario/catalogo).', true);
+  } else loadConfig()
     .then(function(cfg) {
       adminConfig = cfg;
       if (cfg) showScreen('login-screen');
