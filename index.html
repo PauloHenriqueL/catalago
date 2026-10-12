@@ -222,23 +222,7 @@
     <p>Clique em uma imagem para ampliar</p>
   </header>
 
-  <div class="gallery" id="gallery">
-    <!--
-      COMO ADICIONAR NOVAS IMAGENS:
-      1. Coloque o arquivo na pasta "imagem/"
-      2. Copie um dos blocos <div class="card"> abaixo
-      3. Troque o src e o alt pelo nome do novo arquivo
-    -->
-
-    <div class="card" onclick="openLightbox('imagem/chinelo_1.jpeg')">
-      <img src="imagem/chinelo_1.jpeg" alt="Produto 1" loading="lazy">
-    </div>
-
-    <div class="card" onclick="openLightbox('imagem/chinelo_2.jpeg')">
-      <img src="imagem/chinelo_2.jpeg" alt="Produto 2" loading="lazy">
-    </div>
-
-  </div>
+  <div class="gallery" id="gallery"></div>
 
   <!-- Lightbox -->
   <div class="lightbox" id="lightbox" onclick="closeLightbox()">
@@ -278,6 +262,24 @@
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') closeLightbox();
     });
+
+    fetch('produtos.json')
+      .then(function(r) { return r.json(); })
+      .then(function(produtos) {
+        var gallery = document.getElementById('gallery');
+        produtos.forEach(function(p) {
+          var card = document.createElement('div');
+          card.className = 'card';
+          card.addEventListener('click', function() { openLightbox(p.src); });
+          var img = document.createElement('img');
+          img.src = p.src;
+          img.alt = p.alt || 'Produto';
+          img.loading = 'lazy';
+          card.appendChild(img);
+          gallery.appendChild(card);
+        });
+      })
+      .catch(function() {});
   </script>
 
 </body>

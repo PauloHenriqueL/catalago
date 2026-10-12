@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Admin — Catálogo</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap">
+  <style>
+    :root {
+      --bg: #fafaf8;
+      --surface: #ffffff;
+      --fg: #1c1c1c;
+      --muted: #6b7280;
+      --border: #ebebeb;
+      --radius: 12px;
+      --danger: #ef4444;
+      --accent: #3b82f6;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #111110;
+        --surface: #1c1c1b;
+        --fg: #f0efe8;
+        --muted: #9ca3af;
+        --border: #2a2a28;
+        color-scheme: dark;
+      }
+    }
+
+    :root[data-theme="dark"] {
+      --bg: #111110;
+      --surface: #1c1c1b;
+      --fg: #f0efe8;
+      --muted: #9ca3af;
+      --border: #2a2a28;
+      color-scheme: dark;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      padding-inline: 16px;
+      min-height: 100vh;
+    }
+
+    header {
+      position: sticky;
+      top: env(safe-area-inset-top, 0px);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding-block: 16px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 { font-size: 1.1rem; font-weight: 700; }
+
+    /* ─── Card ───────────────────────────────── */
+    .card-wrap {
+      max-width: 420px;
+      margin: 72px auto 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+    }
+
+    .card-wrap h2 { font-size: 1.15rem; margin-bottom: 6px; }
+    .card-wrap .subtitle {
+      font-size: 0.83rem;
+      color: var(--muted);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    /* ─── Inputs ─────────────────────────────── */
+    .field { margin-bottom: 12px; }
+
+    .field label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      background: var(--bg);
+      color: var(--fg);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .field input:focus { border-color: var(--accent); }
+
+    /* ─── Buttons ────────────────────────────── */
+    button {
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    button:disabled { opacity: 0.5; cursor: default; }
+    button:active:not(:disabled) { transform: scale(0.97); }
+
+    .btn-primary {
+      background: var(--fg);
+      color: var(--bg);
+      padding: 11px 20px;
+      width: 100%;
+      margin-top: 4px;
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      border-radius: 6px;
+      width: 100%;
+    }
+
+    .btn-logout {
+      font-size: 0.8rem;
+      color: var(--muted);
+      background: none;
+      padding: 5px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+
+    /* ─── Upload zone ────────────────────────── */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      margin-block: 24px;
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(59, 130, 246, 0.05);
+    }
+
+    .upload-zone .upload-icon { font-size: 2.2rem; margin-bottom: 8px; }
+    .upload-zone strong { font-size: 0.95rem; }
+    .upload-zone p { font-size: 0.82rem; color: var(--muted); margin-top: 4px; }
+
+    #file-input { display: none; }
+
+    /* ─── Grid ───────────────────────────────── */
+    .section-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 12px;
+    }
+
+    .prod-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      padding-bottom: 48px;
+    }
+
+    @media (min-width: 560px) { .prod-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (min-width: 840px) { .prod-grid { grid-template-columns: repeat(4, 1fr); } }
+
+    .prod-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .prod-card img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      display: block;
+    }
+
+    .prod-card .card-footer { padding: 8px; }
+
+    /* ─── Toast ──────────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: max(24px, env(safe-area-inset-bottom, 24px));
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--fg);
+      color: var(--bg);
+      padding: 10px 20px;
+      border-radius: 50px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      z-index: 999;
+      opacity: 0;
+      pointer-events: none;
+      white-space: nowrap;
+      transition: opacity 0.2s;
+    }
+
+    .toast.show  { opacity: 1; }
+    .toast.error { background: var(--danger); color: #fff; }
+
+    .empty-msg {
+      color: var(--muted);
+      font-size: 0.85rem;
+      grid-column: 1 / -1;
+      padding-block: 8px;
+    }
+
+    .hint {
+      font-size: 0.77rem;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-top: 14px;
+    }
+
+    .hint a { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<!-- ── STEP 1: Login ────────────────────────────────────────────────────────── -->
+<div id="login-screen">
+  <div class="card-wrap">
+    <h2>Admin — Catálogo</h2>
+    <p class="subtitle">Acesso restrito ao administrador.</p>
+
+    <div class="field">
+      <label for="user-input">Usuário</label>
+      <input type="text" id="user-input" autocomplete="username" spellcheck="false">
+    </div>
+    <div class="field">
+      <label for="pass-input">Senha</label>
+      <input type="password" id="pass-input" autocomplete="current-password">
+    </div>
+    <button class="btn-primary" id="login-btn">Entrar</button>
+  </div>
+</div>
+
+<!-- ── STEP 2: GitHub Token (first time only) ────────────────────────────────── -->
+<div id="token-screen" style="display:none">
+  <div class="card-wrap">
+    <h2>Configuração inicial</h2>
+    <p class="subtitle">
+      Na primeira vez, informe seu GitHub Personal Access Token.
+      Ele será salvo neste navegador — você não precisará inserir novamente.
+    </p>
+
+    <div class="field">
+      <label for="token-input">GitHub Personal Access Token</label>
+      <input type="password" id="token-input" placeholder="ghp_…" autocomplete="off" spellcheck="false">
+    </div>
+    <button class="btn-primary" id="token-btn">Salvar e continuar</button>
+
+    <p class="hint">
+      Ainda não tem um token?
+      <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">Criar aqui</a>
+      — selecione o repositório <strong>catalago</strong> e marque
+      <em>Contents → Read and write</em>.
+    </p>
+  </div>
+</div>
+
+<!-- ── STEP 3: Admin ─────────────────────────────────────────────────────────── -->
+<div id="admin-screen" style="display:none">
+  <header>
+    <h1>Admin — Catálogo</h1>
+    <button class="btn-logout" id="logout-btn">Sair</button>
+  </header>
+
+  <div style="padding-top:8px">
+    <div class="upload-zone" id="upload-zone" role="button" aria-label="Área de upload de fotos">
+      <div class="upload-icon">📷</div>
+      <strong>Clique ou arraste fotos aqui</strong>
+      <p>JPG, PNG, WebP — pode selecionar várias de uma vez</p>
+    </div>
+    <input type="file" id="file-input" multiple accept="image/*">
+
+    <div class="section-label" id="grid-label">Produtos no catálogo</div>
+    <div class="prod-grid" id="prod-grid"></div>
+  </div>
+</div>
+
+<script>
+  // SHA-256 hash of "paulo_lima:DYw90088!" — credenciais não ficam no código
+  var ADMIN_HASH = 'c2192a46bf9c854915032baec9fc1bd55ba782131ffdb325d7773f79907713a6';
+
+  var REPO   = 'PauloHenriqueL/catalago';
+  var BRANCH = 'main';
+  var TOKEN  = '';
+
+  // ── Crypto ───────────────────────────────────────────────────────────────
+
+  async function sha256(str) {
+    var buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(function(b) {
+      return b.toString(16).padStart(2, '0');
+    }).join('');
+  }
+
+  // ── GitHub API ───────────────────────────────────────────────────────────
+
+  async function ghFetch(method, path, body) {
+    var res = await fetch('https://api.github.com/repos/' + REPO + '/contents/' + path, {
+      method: method,
+      headers: {
+        Authorization: 'token ' + TOKEN,
+        'Content-Type': 'application/json',
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+    var json = await res.json().catch(function() { return {}; });
+    if (!res.ok) throw new Error(json.message || 'HTTP ' + res.status);
+    return json;
+  }
+
+  async function getFile(path) {
+    return ghFetch('GET', path, undefined);
+  }
+
+  async function putFile(path, base64Content, sha, message) {
+    var body = { message: message, content: base64Content, branch: BRANCH };
+    if (sha) body.sha = sha;
+    return ghFetch('PUT', path, body);
+  }
+
+  async function deleteFile(path, sha, message) {
+    return ghFetch('DELETE', path, { message: message, sha: sha, branch: BRANCH });
+  }
+
+  // ── produtos.json ────────────────────────────────────────────────────────
+
+  async function getProdutos() {
+    try {
+      var data = await getFile('produtos.json');
+      var text = atob(data.content.replace(/\n/g, ''));
+      return { list: JSON.parse(text), sha: data.sha };
+    } catch (e) {
+      return { list: [], sha: null };
+    }
+  }
+
+  async function saveProdutos(list, sha, message) {
+    var json = JSON.stringify(list, null, 2);
+    var b64  = btoa(unescape(encodeURIComponent(json)));
+    var data = await putFile('produtos.json', b64, sha, message);
+    return data.content.sha;
+  }
+
+  // ── State ────────────────────────────────────────────────────────────────
+
+  var state = { list: [], sha: null };
+
+  // ── Toast ────────────────────────────────────────────────────────────────
+
+  var toastTimer;
+  function showToast(msg, isError) {
+    var el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (isError ? ' error' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function() { el.className = 'toast'; }, 3500);
+  }
+
+  // ── Grid ─────────────────────────────────────────────────────────────────
+
+  function renderGrid(list) {
+    var grid  = document.getElementById('prod-grid');
+    var label = document.getElementById('grid-label');
+    label.textContent = 'Produtos no catálogo (' + list.length + ')';
+
+    if (list.length === 0) {
+      grid.innerHTML = '<p class="empty-msg">Nenhum produto. Adicione fotos acima.</p>';
+      return;
+    }
+
+    grid.innerHTML = '';
+    list.forEach(function(p, i) {
+      var card = document.createElement('div');
+      card.className = 'prod-card';
+
+      var img = document.createElement('img');
+      img.loading = 'lazy';
+      img.alt = p.alt || 'Produto';
+      img.src = p.src + '?cb=' + Date.now();
+      card.appendChild(img);
+
+      var footer = document.createElement('div');
+      footer.className = 'card-footer';
+
+      var btn = document.createElement('button');
+      btn.className = 'btn-danger';
+      btn.textContent = 'Remover';
+      btn.dataset.index = String(i);
+      btn.addEventListener('click', function() {
+        deleteProduct(parseInt(this.dataset.index));
+      });
+      footer.appendChild(btn);
+      card.appendChild(footer);
+      grid.appendChild(card);
+    });
+  }
+
+  // ── Load ─────────────────────────────────────────────────────────────────
+
+  async function loadProducts() {
+    document.getElementById('prod-grid').innerHTML =
+      '<p class="empty-msg">Carregando…</p>';
+    try {
+      state = await getProdutos();
+      renderGrid(state.list);
+    } catch (e) {
+      showToast('Erro ao carregar: ' + e.message, true);
+    }
+  }
+
+  // ── Upload ────────────────────────────────────────────────────────────────
+
+  function fileToBase64(file) {
+    return new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onload  = function() { resolve(reader.result.split(',')[1]); };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function uploadFiles(files) {
+    var zone = document.getElementById('upload-zone');
+    zone.style.opacity = '0.5';
+    zone.style.pointerEvents = 'none';
+
+    var uploaded = 0;
+    for (var i = 0; i < files.length; i++) {
+      var file = files[i];
+      try {
+        showToast('Enviando ' + file.name + '…');
+        var base64   = await fileToBase64(file);
+        var safeName = Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        var path     = 'imagem/' + safeName;
+
+        await putFile(path, base64, null, 'Admin: add ' + file.name);
+
+        state.list.push({ src: path, alt: 'Produto ' + (state.list.length + 1) });
+        state.sha = await saveProdutos(
+          state.list, state.sha,
+          'Admin: register ' + file.name
+        );
+        uploaded++;
+        renderGrid(state.list);
+      } catch (e) {
+        showToast('Erro em ' + file.name + ': ' + e.message, true);
+      }
+    }
+
+    zone.style.opacity = '';
+    zone.style.pointerEvents = '';
+    if (uploaded > 0) {
+      showToast(uploaded + ' foto(s) adicionada(s)! Site atualiza em até 2 min.');
+    }
+  }
+
+  // ── Delete ────────────────────────────────────────────────────────────────
+
+  async function deleteProduct(index) {
+    var prod = state.list[index];
+    if (!confirm('Remover esta foto do catálogo?\n' + prod.src)) return;
+
+    try {
+      showToast('Removendo…');
+      try {
+        var fileData = await getFile(prod.src);
+        await deleteFile(prod.src, fileData.sha, 'Admin: remove ' + prod.src);
+      } catch (e) {
+        // arquivo pode já não existir; continua
+      }
+      state.list.splice(index, 1);
+      state.sha = await saveProdutos(
+        state.list, state.sha,
+        'Admin: remove product ' + index
+      );
+      renderGrid(state.list);
+      showToast('Foto removida.');
+    } catch (e) {
+      showToast('Erro ao remover: ' + e.message, true);
+    }
+  }
+
+  // ── Screens ───────────────────────────────────────────────────────────────
+
+  function showScreen(id) {
+    ['login-screen', 'token-screen', 'admin-screen'].forEach(function(s) {
+      document.getElementById(s).style.display = (s === id) ? '' : 'none';
+    });
+  }
+
+  // ── Login ─────────────────────────────────────────────────────────────────
+
+  async function handleLogin() {
+    var user = document.getElementById('user-input').value.trim();
+    var pass = document.getElementById('pass-input').value;
+    var btn  = document.getElementById('login-btn');
+
+    if (!user || !pass) { showToast('Preencha usuário e senha.', true); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Verificando…';
+
+    try {
+      var hash = await sha256(user + ':' + pass);
+      if (hash !== ADMIN_HASH) {
+        showToast('Usuário ou senha incorretos.', true);
+        return;
+      }
+
+      var savedToken = localStorage.getItem('admin_gh_token');
+      if (!savedToken) {
+        showScreen('token-screen');
+      } else {
+        TOKEN = savedToken;
+        showScreen('admin-screen');
+        loadProducts();
+      }
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Entrar';
+    }
+  }
+
+  // ── Token setup ───────────────────────────────────────────────────────────
+
+  async function handleTokenSetup() {
+    var input = document.getElementById('token-input');
+    var btn   = document.getElementById('token-btn');
+    var t = input.value.trim();
+    if (!t) { showToast('Insira o token.', true); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Verificando…';
+    TOKEN = t;
+
+    try {
+      await getFile('produtos.json').catch(function() { return null; });
+      localStorage.setItem('admin_gh_token', t);
+      showScreen('admin-screen');
+      loadProducts();
+    } catch (e) {
+      showToast('Token inválido ou sem permissão.', true);
+      TOKEN = '';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Salvar e continuar';
+    }
+  }
+
+  function logout() {
+    TOKEN = '';
+    document.getElementById('user-input').value = '';
+    document.getElementById('pass-input').value = '';
+    showScreen('login-screen');
+  }
+
+  // ── Event wiring ──────────────────────────────────────────────────────────
+
+  document.getElementById('login-btn').addEventListener('click', handleLogin);
+  document.getElementById('token-btn').addEventListener('click', handleTokenSetup);
+  document.getElementById('logout-btn').addEventListener('click', logout);
+
+  document.getElementById('pass-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') handleLogin();
+  });
+  document.getElementById('token-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') handleTokenSetup();
+  });
+
+  var zone      = document.getElementById('upload-zone');
+  var fileInput = document.getElementById('file-input');
+
+  zone.addEventListener('click', function() { fileInput.click(); });
+  fileInput.addEventListener('change', function() {
+    if (fileInput.files.length) uploadFiles(fileInput.files);
+    fileInput.value = '';
+  });
+
+  zone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    zone.classList.add('drag-over');
+  });
+  zone.addEventListener('dragleave', function() {
+    zone.classList.remove('drag-over');
+  });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    var files = Array.from(e.dataTransfer.files).filter(function(f) {
+      return f.type.startsWith('image/');
+    });
+    if (files.length) uploadFiles(files);
+  });
+
+  // ── Boot ──────────────────────────────────────────────────────────────────
+
+  // Ao abrir, sempre pede login (não lembrar sessão entre abas)
+  showScreen('login-screen');
+</script>
+
+</body>
+</html>
