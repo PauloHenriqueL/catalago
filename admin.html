@@ -512,7 +512,16 @@
       var data = await getFile('produtos.json');
       var text = atob(data.content.replace(/\n/g, ''));
       return { list: JSON.parse(text), sha: data.sha };
-    } catch (e) { return { list: [], sha: null }; }
+    } catch (e) {
+      // Arquivo não existe ainda → lista vazia (normal em repo novo)
+      var raw = (e.message || '').toLowerCase();
+      if (raw.includes('not found') || raw.includes('404')) {
+        return { list: [], sha: null };
+      }
+      // Qualquer outro erro (token expirado, sem permissão, sem internet)
+      // deve subir para loadProducts mostrar mensagem amigável
+      throw e;
+    }
   }
 
   async function saveProdutos(list, sha, msg) {
