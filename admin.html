@@ -879,7 +879,15 @@
     btn.textContent = 'Verificando…';
     TOKEN = t;
     try {
-      await getFile('produtos.json').catch(function() { return null; });
+      // Valida autenticação e permissão de escrita consultando os dados do repositório
+      var res = await fetch('https://api.github.com/repos/' + REPO, {
+        headers: { Authorization: 'token ' + t }
+      });
+      var info = await res.json().catch(function() { return {}; });
+      if (!res.ok) throw new Error(info.message || 'HTTP ' + res.status);
+      if (!info.permissions || !info.permissions.push) {
+        throw new Error('resource not accessible by personal access token');
+      }
       localStorage.setItem('admin_gh_token', t);
       showScreen('admin-screen');
       loadProducts();
